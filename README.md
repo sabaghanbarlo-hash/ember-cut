@@ -1,1 +1,57 @@
-IyBFbWJlciBDdXQKCkEgZnJlZSwgaW5zdHJ1Y3Rpb24tYmFzZWQgdmlkZW8gZWRpdG9yIHRoYXQgcnVucyBlbnRpcmVseSBpbiB5b3VyIGJyb3dzZXIuIFVwbG9hZCB2aWRlbywgYXVkaW8sIG9yIGltYWdlcywgZGVzY3JpYmUgdGhlIGVkaXQgaW4gcGxhaW4gRW5nbGlzaCwgcmV2aWV3IHRoZSBnZW5lcmF0ZWQgcGxhbiwgdGhlbiBydW4gaXQuIE5vdGhpbmcgaXMgdXBsb2FkZWQgdG8gYW55IHNlcnZlciDigJQgZWRpdGluZyBoYXBwZW5zIGxvY2FsbHkgdmlhIGBmZm1wZWcud2FzbWAuCgoqKkxpdmUgZGVtbzoqKiBlbmFibGUgR2l0SHViIFBhZ2VzIChzZWUgYmVsb3cpIGFuZCBpdCdsbCBiZSBhdCBgaHR0cHM6Ly88eW91ci11c2VybmFtZT4uZ2l0aHViLmlvLzxyZXBvLW5hbWU+L2AKCiMjIEhvdyBpdCB3b3JrcwoKMS4gWW91IHVwbG9hZCBtZWRpYSBhbmQgdHlwZSBhbiBpbnN0cnVjdGlvbiwgZS5nLiAqIlRyaW0gY2xpcDEgdG8gdGhlIGZpcnN0IDEyIHNlY29uZHMsIGNhcHRpb24gaXQgJ2dvb2QgbW9ybmluZycgYXQgdGhlIHRvcCwgbG93ZXIgdGhlIGJhY2tncm91bmQgYXVkaW8gdG8gMzAlLCB0aGVuIHNwZWVkIGl0IHVwIDEuMjV4LiIqCjIuIFlvdXIgYnJvd3NlciBzZW5kcyB0aGF0IGluc3RydWN0aW9uIChwbHVzIHlvdXIgZmlsZSBuYW1lcywgbm90IHRoZSBmaWxlcyB0aGVtc2VsdmVzKSB0byAqKkdyb3EncyBmcmVlIEFQSSoqLCB3aGljaCByZXR1cm5zIGEgc3RydWN0dXJlZCBKU09OIGVkaXQgcGxhbi4KMy4gWW91IHJldmlldyB0aGUgcGxhbiDigJQgbm90aGluZyByZW5kZXJzIHVudGlsIHlvdSBjbGljayAqKlJ1biBlZGl0KiouCjQuIGBmZm1wZWcud2FzbWAgZXhlY3V0ZXMgdGhlIHBsYW4gc3RlcCBieSBzdGVwLCBlbnRpcmVseSBvbiB5b3VyIGRldmljZS4KNS4gWW91IGRvd25sb2FkIHRoZSByZXN1bHQuCgojIyBTZXR1cCAoNSBtaW51dGVzKQoKMS4gR2V0IGEgZnJlZSBHcm9xIEFQSSBrZXkgYXQgW2NvbnNvbGUuZ3JvcS5jb20va2V5c10oaHR0cHM6Ly9jb25zb2xlLmdyb3EuY29tL2tleXMpIOKAlCBubyBjcmVkaXQgY2FyZCByZXF1aXJlZCBmb3IgdGhlIGZyZWUgdGllci4KMi4gQ3JlYXRlIGEgbmV3IEdpdEh1YiByZXBvIGFuZCBwdXNoIHRoZXNlIGZpbGVzIHRvIGl0IChgaW5kZXguaHRtbGAsIGBzdHlsZS5jc3NgLCBgYXBwLmpzYCwgYGNvaS1zZXJ2aWNld29ya2VyLmpzYCkuCjMuIEluIHRoZSByZXBvOiAqKlNldHRpbmdzIOKGkiBQYWdlcyDihpIgRGVwbG95IGZyb20gYnJhbmNoIOKGkiBtYWluIOKGkiAvIChyb290KSoqLgo0LiBPcGVuIHRoZSBwdWJsaXNoZWQgVVJMLCBwYXN0ZSB5b3VyIEdyb3Ega2V5IGludG8gdGhlIGxlZnQgcGFuZWwgKGl0J3Mgc3RvcmVkIG9ubHkgaW4geW91ciBicm93c2VyJ3MgYGxvY2FsU3RvcmFnZWAsIG5ldmVyIHNlbnQgYW55d2hlcmUgZXhjZXB0IGRpcmVjdGx5IHRvIEdyb3EpLgoKVGhhdCdzIGl0IOKAlCBubyBidWlsZCBzdGVwLCBubyBucG0gaW5zdGFsbCwgbm8gYmFja2VuZC4KCiMjIFdoeSBgY29pLXNlcnZpY2V3b3JrZXIuanNgIGlzIGluIGhlcmUKCmBmZm1wZWcud2FzbWAgbmVlZHMgYFNoYXJlZEFycmF5QnVmZmVyYCwgd2hpY2ggYnJvd3NlcnMgb25seSBhbGxvdyBvbiAiY3Jvc3Mtb3JpZ2luIGlzb2xhdGVkIiBwYWdlcyAocmVxdWlyaW5nIGBDcm9zcy1PcmlnaW4tT3BlbmVyLVBvbGljeWAgLyBgQ3Jvc3MtT3JpZ2luLUVtYmVkZGVyLVBvbGljeWAgcmVzcG9uc2UgaGVhZGVycykuIEdpdEh1YiBQYWdlcyBkb2Vzbid0IGxldCB5b3Ugc2V0IGN1c3RvbSBoZWFkZXJzLCBzbyB0aGlzIHNtYWxsIHNlcnZpY2Ugd29ya2VyIChieSBHdWlkbyBadWlkaG9mLCBNSVQgbGljZW5zZWQpIGZha2VzIHRob3NlIGhlYWRlcnMgY2xpZW50LXNpZGUuIERvbid0IHJlbW92ZSBpdC4KCiMjIFN1cHBvcnRlZCBlZGl0IG9wZXJhdGlvbnMgKHYxKQoKLSBUcmltIC8gY3V0Ci0gQ29uY2F0ZW5hdGUgbXVsdGlwbGUgY2xpcHMKLSBUZXh0IG92ZXJsYXkgLyBjYXB0aW9ucyAodG9wLCBjZW50ZXIsIGJvdHRvbSkKLSBJbWFnZSBvdmVybGF5ICh3YXRlcm1hcmsvbG9nbywgYW55IGNvcm5lciBvciBjZW50ZXIpCi0gQWRkIG9yIHJlcGxhY2UgYXVkaW8gdHJhY2ssIG9yIG1peCB0d28gYXVkaW8gdHJhY2tzCi0gVm9sdW1lIGFkanVzdG1lbnQKLSBTcGVlZCB1cCAvIHNsb3cgZG93biAoMC41eOKAkzJ4KQotIFJlc2l6ZQotIEV4dHJhY3QgYXVkaW8gdG8gbXAzCi0gRm9ybWF0IGNvbnZlcnNpb24KCiMjIEtub3duIGxpbWl0YXRpb25zIOKAlCByZWFkIGJlZm9yZSB5b3UgcmVseSBvbiB0aGlzCgotICoqTm90IGEgQ2FwQ3V0IHJlcGxhY2VtZW50LioqIE5vIGF1dG8tY2FwdGlvbnMgd2l0aCB3b3JkLWxldmVsIHN5bmMsIG5vIEFJIGItcm9sbCwgbm8gdGVtcGxhdGUgbGlicmFyeSwgbm8gZ3JlZW4gc2NyZWVuL2Nocm9tYSBrZXkgKHlldCksIG5vIG11bHRpLXRyYWNrIHRpbWVsaW5lIFVJIOKAlCB0aGlzIGlzIGluc3RydWN0aW9uLWluLCB2aWRlby1vdXQuCi0gKipTcGVlZCBhbmQgZmlsZSBzaXplLioqIEJyb3dzZXItYmFzZWQgZW5jb2RpbmcgaXMgc2xvd2VyIHRoYW4gbmF0aXZlIGFwcHMgYW5kIHN0cnVnZ2xlcyB3aXRoIGxvbmcgb3IgNEsgc291cmNlIHZpZGVvLiBXb3JrcyBiZXN0IHVuZGVyIGEgZmV3IG1pbnV0ZXMgb2YgMTA4MHAgZm9vdGFnZS4KLSAqKlRoZSBBSSBjYW4gbWlzcGFyc2UgYW1iaWd1b3VzIGluc3RydWN0aW9ucy4qKiBBbHdheXMgcmVhZCB0aGUgZ2VuZXJhdGVkIHBsYW4gYmVmb3JlIHJ1bm5pbmcgaXQg4oCUIHRoYXQncyB3aHkgdGhlIHJldmlldyBzdGVwIGV4aXN0cy4KLSAqKkdyb3EgZnJlZSB0aWVyIGhhcyByYXRlIGxpbWl0cy4qKiBJZiBwbGFuIGdlbmVyYXRpb24gZmFpbHMgd2l0aCBhIDQyOSwgd2FpdCBhIGJpdCBhbmQgcmV0cnkuCi0gKipgYXRlbXBvYCBzcGVlZCByYW5nZSBpcyBjYXBwZWQgYXQgMC41eOKAkzJ4KioyBpbiBmZm1wZWcgKGEgaGFyZCBsaW1pdCBvZiB0aGUgZmlsdGVyLCBub3QgdGhpcyBhcHApLgoKIyMgRXh0ZW5kaW5nIGl0CgpBbGwgZWRpdGluZyBsb2dpYyBsaXZlcyBpbiBgYXBwLmpzYCBpbiBgYnVpbGRBbmRSdW5PcCgpYC4gVG8gYWRkIGEgbmV3IGNhcGFiaWxpdHk6CjEuIEFkZCB0aGUgb3BlcmF0aW9uIHRvIHRoZSBKU09OIHNjaGVtYSBpbiBgU0NIRU1BX1BST01QVGAgc28gdGhlIEFJIGtub3dzIGl0IGV4aXN0cy4KMi4gQWRkIGEgYGNhc2VgIGluIGBidWlsZEFuZFJ1bk9wKClgIHRoYXQgYnVpbGRzIHRoZSBtYXRjaGluZyBgZmZtcGVnYCBjb21tYW5kLgoKSWRlYXMgZm9yIHYyOiBhdXRvLWNhcHRpb25zIHZpYSBHcm9xJ3MgV2hpc3BlciBlbmRwb2ludCAodHJhbnNjcmliZSDihpIgYnVybiBpbiB3b3JkLXN5bmNlZCBzdWJ0aXRsZXMg4oCUIHRoaXMgd291bGQgZml0IG5hdHVyYWxseSBuZXh0IHRvIHlvdXIgYG1pa2FzYW4tbmFycmF0b3JgIGthcmFva2UtY2FwdGlvbiB3b3JrKSwgY3Jvc3NmYWRlIHRyYW5zaXRpb25zLCBjaHJvbWEga2V5LCBhIHJlYWwgZHJhZy1hbmQtZHJvcCB0aW1lbGluZS4KCiMjIExpY2Vuc2UKCk1JVC4gYGNvaS1zZXJ2aWNld29ya2VyLmpzYCByZXRhaW5zIGl0cyBvcmlnaW5hbCBNSVQgbGljZW5zZSBmcm9tIEd1aWRvIFp1aWRob2YuCg==
+# Ember Cut
+
+A free, instruction-based video editor that runs entirely in your browser. Upload video, audio, or images, describe the edit in plain English, review the generated plan, then run it. Nothing is uploaded to any server — editing happens locally via `ffmpeg.wasm`.
+
+**Live demo:** `https://sabaghanbarlo-hash.github.io/ember-cut/`
+
+## How it works
+
+1. You upload media and type an instruction, e.g. *"Trim clip1 to the first 12 seconds, caption it 'good morning' at the top, lower the background audio to 30%, then speed it up 1.25x."*
+2. Your browser sends that instruction (plus your file names, not the files themselves) to **Groq's free API**, which returns a structured JSON edit plan.
+3. You review the plan — nothing renders until you click **Run edit**.
+4. `ffmpeg.wasm` executes the plan step by step, entirely on your device.
+5. You download the result.
+
+## Setup
+
+1. Get a free Groq API key at [console.groq.com/keys](https://console.groq.com/keys) — no credit card required for the free tier.
+2. Open the live URL above, paste your Groq key into the left panel (it's stored only in your browser's `localStorage`, never sent anywhere except directly to Groq).
+
+**Never share your Groq API key in chat, email, or anywhere public — paste it only into the app itself.**
+
+## Why `coi-serviceworker.js` is in here
+
+`ffmpeg.wasm` needs `SharedArrayBuffer`, which browsers only allow on "cross-origin isolated" pages (requiring `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` response headers). GitHub Pages doesn't let you set custom headers, so this small service worker (by Guido Zuidhof, MIT licensed) fakes those headers client-side. Don't remove it.
+
+## Supported edit operations (v1)
+
+- Trim / cut
+- Concatenate multiple clips
+- Text overlay / captions (top, center, bottom)
+- Image overlay (watermark/logo, any corner or center)
+- Add or replace audio track, or mix two audio tracks
+- Volume adjustment
+- Speed up / slow down (0.5x–2x)
+- Resize
+- Extract audio to mp3
+- Format conversion
+
+## Known limitations — read before you rely on this
+
+- **Not a CapCut replacement.** No auto-captions with word-level sync, no AI b-roll, no template library, no green screen/chroma key (yet), no multi-track timeline UI — this is instruction-in, video-out.
+- **Speed and file size.** Browser-based encoding is slower than native apps and struggles with long or 4K source video. Works best under a few minutes of 1080p footage.
+- **The AI can misparse ambiguous instructions.** Always read the generated plan before running it — that's why the review step exists.
+- **Groq free tier has rate limits.** If plan generation fails with a 429, wait a bit and retry.
+- **`atempo` speed range is capped at 0.5x–2x** in ffmpeg (a hard limit of the filter, not this app).
+
+## Extending it
+
+All editing logic lives in `app.js` in `buildAndRunOp()`. To add a new capability:
+1. Add the operation to the JSON schema in `SCHEMA_PROMPT` so the AI knows it exists.
+2. Add a `case` in `buildAndRunOp()` that builds the matching `ffmpeg` command.
+
+Ideas for v2: auto-captions via Groq's Whisper endpoint (transcribe → burn in word-synced subtitles — this would fit naturally next to your `mikasan-narrator` karaoke-caption work), crossfade transitions, chroma key, a real drag-and-drop timeline.
+
+## License
+
+MIT. `coi-serviceworker.js` retains its original MIT license from Guido Zuidhof.
