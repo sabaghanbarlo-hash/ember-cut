@@ -3,6 +3,11 @@
    turns your instructions into a structured edit plan. No server, no upload. */
 
 const els = {
+  refDropzone: document.getElementById('refDropzone'),
+  refFileInput: document.getElementById('refFileInput'),
+  refFileName: document.getElementById('refFileName'),
+  analyzeBtn: document.getElementById('analyzeBtn'),
+  styleOutput: document.getElementById('styleOutput'),
   dropzone: document.getElementById('dropzone'),
   fileInput: document.getElementById('fileInput'),
   mediaList: document.getElementById('mediaList'),
@@ -24,6 +29,8 @@ let mediaFiles = [];   // { id, file, name, type }
 let currentPlan = null;
 let ffmpeg = null;
 let ffmpegLoaded = false;
+let referenceFile = null;
+let styleProfile = null;
 
 // ---------- logging ----------
 function log(msg) {
@@ -80,6 +87,152 @@ function renderMediaList() {
   }
 }
 
+// ---------- reference video: upload + style analysis ----------
+els.refDropzone.addEventListener('click', () => els.refFileInput.click());
+els.refDropzone.addEventListener('dragover', (e) => { e.preventDefault(); });
+els.refDropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) setReferenceFile(e.dataTransfer.files[0]);
+});
+els.refFileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) setReferenceFile(e.target.files[0]);
+});
+
+function setReferenceFile(file) {
+  referenceFile = file;
+  els.refFileName.textContent = `Reference: ${file.name}`;
+  els.analyzeBtn.disabled = false;
+  styleProfile = null;
+  els.styleOutput.style.display = 'none';
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function extractReferenceFrames(file) {
+  await ensureFFmpeg();
+  const { fetchFile } = FFmpegUtil;
+  const inputName = 'reference-input.mp4';
+  await ffmpeg.writeFile(inputName, await fetchFile(file));
+  log('Extracting sample frames from the reference video…');
+  // one frame every 3 seconds, up to 6 frames — enough to read pacing/style without
+  // needing to know the video's duration ahead of time
+  await ffmpeg.exec(['-i', inputName, '-vf', 'fps=1/3', '-frames:v', '6', '-q:v', '4', 'ref-frame-%02d.jpg']);
+
+  const frames = [];
+  for (let i = 1; i <= 6; i++) {
+    const fname = `ref-frame-${String(i).padStart(2, '0')}.jpg`;
+    try {
+      const data = await ffmpeg.readFile(fname);
+      frames.push({
+        name: fname,
+        dataUrl: `data:image/jpeg;base64,${arrayBufferToBase64(data.buffer)}`,
+        timestampSeconds: (i - 1) * 3,
+      });
+    } catch (e) {
+      break; // video was shorter than expected — fine, use what we got
+    }
+  }
+  if (frames.length === 0) throw new Error('Could not extract any frames from the reference video.');
+  return frames;
+}
+
+async function describeFrame(dataUrl, key) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'llama-3.2-90b-vision-preview',
+      temperature: 0.2,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'In one short sentence, describe this video frame: subject, composition, any visible on-screen text, mood and color.' },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      }],
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq vision error (${res.status}): ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || '(no description)';
+}
+
+async function synthesizeStyleProfile(describedFrames, key) {
+  const descText = describedFrames.map((f) => `t=${f.timestampSeconds}s: ${f.description}`).join('\n');
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.3,
+      messages: [
+        {
+          role: 'system',
+          content: `You analyze a sequence of frame descriptions sampled every 3 seconds from a reference video and output a JSON style profile ONLY — no prose, no markdown fences. Schema:
+{
+  "pacing": "fast|medium|slow",
+  "recommended_clip_duration_seconds": <number, how long each cut/segment seems to run>,
+  "caption_style": "<describe on-screen text placement and tone if any is visible in the frames, else 'none observed'>",
+  "tone": "<a few words>",
+  "color_mood": "<a few words>",
+  "summary": "<1-2 sentence description of the overall visual style to imitate>"
+}`,
+        },
+        { role: 'user', content: `Frame descriptions:\n${descText}` },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq API error (${res.status}): ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const raw = data.choices?.[0]?.message?.content || '';
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned);
+}
+
+els.analyzeBtn.addEventListener('click', async () => {
+  const key = els.groqKey.value.trim();
+  if (!key) { alert('Add your free Groq API key first (below).'); return; }
+  if (!referenceFile) return;
+
+  els.analyzeBtn.disabled = true;
+  els.styleOutput.style.display = 'block';
+  els.styleOutput.textContent = 'Extracting frames…';
+
+  try {
+    const frames = await extractReferenceFrames(referenceFile);
+    const described = [];
+    for (const f of frames) {
+      els.styleOutput.textContent = `Describing frame ${described.length + 1}/${frames.length}…`;
+      const description = await describeFrame(f.dataUrl, key);
+      described.push({ timestampSeconds: f.timestampSeconds, description });
+    }
+    els.styleOutput.textContent = 'Synthesizing style profile…';
+    styleProfile = await synthesizeStyleProfile(described, key);
+    els.styleOutput.textContent = JSON.stringify(styleProfile, null, 2);
+    log('Reference style analyzed — it will now inform your next generated plan.');
+  } catch (err) {
+    els.styleOutput.textContent = `Error: ${err.message}`;
+    styleProfile = null;
+    log(`Style analysis failed: ${err.message}`);
+  } finally {
+    els.analyzeBtn.disabled = false;
+  }
+});
+
 // ---------- Groq: instructions -> edit plan ----------
 const SCHEMA_PROMPT = `You are a video editing planner. Convert the user's plain-language instructions
 into a strict JSON edit plan for an ffmpeg-based executor. Respond with ONLY valid JSON, no prose, no markdown fences.
@@ -96,16 +249,19 @@ Schema:
     { "op": "speed", "input": "<filename>", "factor": <0.5-2.0>, "output": "<newname>" },
     { "op": "resize", "input": "<filename>", "width": <number>, "height": <number>, "output": "<newname>" },
     { "op": "extract_audio", "input": "<filename>", "output": "<newname ending in .mp3>" },
-    { "op": "format_convert", "input": "<filename>", "output": "<newname with target extension>" }
+    { "op": "format_convert", "input": "<filename>", "output": "<newname with target extension>" },
+    { "op": "image_to_clip", "input": "<filename, a still image>", "duration": <seconds:number>, "output": "<newname ending in .mp4>" }
   ],
   "final_output": "<the filename that is the finished result>"
 }
 
 Rules:
 - Only use filenames from the provided media list, or names you created earlier as an "output" in a prior step.
+- Any still image (jpg/png/etc.) MUST be converted to a clip with "image_to_clip" before it can be used in "concat", "text_overlay", or as a final output.
 - Chain operations in logical order — each step's "input" should be a real input file or a previous step's "output".
 - Keep the plan minimal: only include steps the user actually asked for.
 - "final_output" must match the output of the last relevant operation.
+- If a "style reference" is provided, use its pacing and recommended clip duration as a guide for trim/image_to_clip durations, and its caption style as a guide for any text_overlay, but build the video ONLY from the user's own uploaded files.
 - If something is ambiguous, make the most reasonable assumption rather than asking a question.`;
 
 async function callGroq(instructionText) {
@@ -116,6 +272,10 @@ async function callGroq(instructionText) {
   const mediaDescription = mediaFiles
     .map((m) => `- ${m.name} (${m.type || 'unknown type'})`)
     .join('\n');
+
+  const styleContext = styleProfile
+    ? `\n\nStyle reference (extracted from an example video — that video is NOT among your available files, do not reference it directly, only imitate its style using the files below):\n${JSON.stringify(styleProfile)}`
+    : '';
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -130,7 +290,7 @@ async function callGroq(instructionText) {
         { role: 'system', content: SCHEMA_PROMPT },
         {
           role: 'user',
-          content: `Available media files:\n${mediaDescription}\n\nInstructions: ${instructionText}`,
+          content: `Available media files:\n${mediaDescription}\n\nInstructions: ${instructionText}${styleContext}`,
         },
       ],
     }),
@@ -300,6 +460,13 @@ async function buildAndRunOp(op) {
     }
     case 'format_convert': {
       args.push('-i', op.input, '-c:v', 'libx264', '-c:a', 'aac', op.output);
+      break;
+    }
+    case 'image_to_clip': {
+      const dur = op.duration || 4;
+      args.push('-loop', '1', '-i', op.input, '-t', String(dur), '-vf',
+        'scale=1280:-2:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p',
+        '-c:v', 'libx264', '-r', '30', op.output);
       break;
     }
     default:
