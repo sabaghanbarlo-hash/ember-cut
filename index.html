@@ -24,7 +24,19 @@
 
   <!-- LEFT: media + settings -->
   <section class="panel panel-media">
-    <h2 class="panel-title">01 — Load your media</h2>
+    <h2 class="panel-title">00 — Analyze a reference <span class="free-tag">optional</span></h2>
+    <p class="hint">Upload a video whose style you want to copy — pacing, cuts, mood. It's only analyzed, never included in your export.</p>
+
+    <label class="dropzone" id="refDropzone">
+      <input type="file" id="refFileInput" accept="video/*" hidden />
+      <span class="dz-icon">◎</span>
+      <span class="dz-text">Drop a reference video<br><span class="dz-sub">or tap to browse</span></span>
+    </label>
+    <div id="refFileName" class="hint"></div>
+    <button id="analyzeBtn" class="btn btn-ghost" disabled style="margin-top:10px; width:100%;">Analyze style</button>
+    <pre id="styleOutput" class="plan-output" style="margin-top:10px; display:none;"></pre>
+
+    <h2 class="panel-title" style="margin-top:26px;">01 — Load your media</h2>
 
     <label class="dropzone" id="dropzone">
       <input type="file" id="fileInput" multiple accept="video/*,audio/*,image/*" hidden />
