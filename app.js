@@ -368,10 +368,14 @@ async function ensureFFmpeg() {
   });
 
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+  const classWorkerURL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js';
   log('Loading ffmpeg core (first run only, ~30MB)…');
   await ffmpeg.load({
     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    // browsers refuse to construct a Worker from a cross-origin script URL directly —
+    // fetching it as a blob first makes it same-origin from the page's point of view
+    classWorkerURL: await toBlobURL(classWorkerURL, 'text/javascript'),
   });
   ffmpegLoaded = true;
   log('ffmpeg ready.');
