@@ -33,6 +33,17 @@ let referenceFile = null;
 let styleProfile = null;
 
 // ---------- logging ----------
+function errText(err) {
+  if (err === null || err === undefined) return 'unknown error (no details provided)';
+  if (typeof err === 'string') return err;
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === 'object') {
+    if (err.message) return err.message;
+    try { return JSON.stringify(err); } catch (e) { /* fall through */ }
+  }
+  try { return String(err); } catch (e) { return 'unknown error'; }
+}
+
 function log(msg) {
   const t = new Date().toLocaleTimeString();
   els.logOutput.textContent += `[${t}] ${msg}\n`;
@@ -161,8 +172,8 @@ async function describeFrame(dataUrl, key) {
     }),
   });
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Groq vision error (${res.status}): ${errText.slice(0, 200)}`);
+    const errBody = await res.text();
+    throw new Error(`Groq vision error (${res.status}): ${errBody.slice(0, 200)}`);
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content?.trim() || '(no description)';
@@ -194,8 +205,8 @@ async function synthesizeStyleProfile(describedFrames, key) {
     }),
   });
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Groq API error (${res.status}): ${errText.slice(0, 200)}`);
+    const errBody = await res.text();
+    throw new Error(`Groq API error (${res.status}): ${errBody.slice(0, 200)}`);
   }
   const data = await res.json();
   const raw = data.choices?.[0]?.message?.content || '';
@@ -225,9 +236,9 @@ els.analyzeBtn.addEventListener('click', async () => {
     els.styleOutput.textContent = JSON.stringify(styleProfile, null, 2);
     log('Reference style analyzed — it will now inform your next generated plan.');
   } catch (err) {
-    els.styleOutput.textContent = `Error: ${err.message}`;
+    els.styleOutput.textContent = `Error: ${errText(err)}`;
     styleProfile = null;
-    log(`Style analysis failed: ${err.message}`);
+    log(`Style analysis failed: ${errText(err)}`);
   } finally {
     els.analyzeBtn.disabled = false;
   }
@@ -297,8 +308,8 @@ async function callGroq(instructionText) {
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Groq API error (${res.status}): ${errText.slice(0, 300)}`);
+    const errBody = await res.text();
+    throw new Error(`Groq API error (${res.status}): ${errBody.slice(0, 300)}`);
   }
   const data = await res.json();
   const raw = data.choices?.[0]?.message?.content || '';
@@ -326,8 +337,8 @@ els.planBtn.addEventListener('click', async () => {
     els.runBtn.disabled = false;
     log('Plan generated. Review it, then click "Run edit".');
   } catch (err) {
-    els.planOutput.textContent = `Error: ${err.message}`;
-    log(`Plan generation failed: ${err.message}`);
+    els.planOutput.textContent = `Error: ${errText(err)}`;
+    log(`Plan generation failed: ${errText(err)}`);
   } finally {
     els.planBtn.disabled = false;
   }
@@ -348,7 +359,7 @@ async function ensureFont() {
     fontLoadedName = 'overlay-font.ttf';
     log('Loaded caption font.');
   } catch (e) {
-    log(`Warning: could not load a web font (${e.message}). Text overlays may fail.`);
+    log(`Warning: could not load a web font (${errText(e)}). Text overlays may fail.`);
     fontLoadedName = null;
   }
   return fontLoadedName;
@@ -370,13 +381,17 @@ async function ensureFFmpeg() {
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
   const classWorkerURL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js';
   log('Loading ffmpeg core (first run only, ~30MB)…');
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    // browsers refuse to construct a Worker from a cross-origin script URL directly —
-    // fetching it as a blob first makes it same-origin from the page's point of view
-    classWorkerURL: await toBlobURL(classWorkerURL, 'text/javascript'),
-  });
+  try {
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      // browsers refuse to construct a Worker from a cross-origin script URL directly —
+      // fetching it as a blob first makes it same-origin from the page's point of view
+      classWorkerURL: await toBlobURL(classWorkerURL, 'text/javascript'),
+    });
+  } catch (err) {
+    throw new Error(`ffmpeg.load() failed: ${errText(err)}`);
+  }
   ffmpegLoaded = true;
   log('ffmpeg ready.');
 }
@@ -515,8 +530,8 @@ els.runBtn.addEventListener('click', async () => {
     els.progressLabel.textContent = 'Done.';
     log('Export complete.');
   } catch (err) {
-    log(`Edit failed: ${err.message}`);
-    els.progressLabel.textContent = `Failed: ${err.message}`;
+    log(`Edit failed: ${errText(err)}`);
+    els.progressLabel.textContent = `Failed: ${errText(err)}`;
   } finally {
     els.runBtn.disabled = false;
     els.planBtn.disabled = false;
