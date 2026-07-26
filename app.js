@@ -117,42 +117,68 @@ function setReferenceFile(file) {
   els.styleOutput.style.display = 'none';
 }
 
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
+// Grabs sample frames straight from the video element via <canvas>, instead of loading
+// the whole reference video into ffmpeg.wasm's WASM memory just to sample a few frames.
+// That old approach could exhaust available memory (especially on mobile browsers) on
+// anything but a very short/small reference video.
 async function extractReferenceFrames(file) {
-  await ensureFFmpeg();
-  const { fetchFile } = FFmpegUtil;
-  const inputName = 'reference-input.mp4';
-  await ffmpeg.writeFile(inputName, await fetchFile(file));
-  log('Extracting sample frames from the reference video…');
-  // one frame every 3 seconds, up to 6 frames — enough to read pacing/style without
-  // needing to know the video's duration ahead of time
-  await ffmpeg.exec(['-i', inputName, '-vf', 'fps=1/3', '-frames:v', '6', '-q:v', '4', 'ref-frame-%02d.jpg']);
+  log('Reading reference video…');
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.src = url;
 
-  const frames = [];
-  for (let i = 1; i <= 6; i++) {
-    const fname = `ref-frame-${String(i).padStart(2, '0')}.jpg`;
-    try {
-      const data = await ffmpeg.readFile(fname);
-      frames.push({
-        name: fname,
-        dataUrl: `data:image/jpeg;base64,${arrayBufferToBase64(data.buffer)}`,
-        timestampSeconds: (i - 1) * 3,
-      });
-    } catch (e) {
-      break; // video was shorter than expected — fine, use what we got
+  try {
+    await new Promise((resolve, reject) => {
+      video.addEventListener('loadedmetadata', () => resolve(), { once: true });
+      video.addEventListener('error', () => reject(new Error('Could not read the reference video. Try a different file or format.')), { once: true });
+    });
+
+    const duration = video.duration;
+    if (!isFinite(duration) || duration <= 0) {
+      throw new Error('Could not determine the reference video\'s duration.');
     }
+
+    // downscale so each frame's base64 payload stays small (keeps memory and the
+    // Groq vision request size down)
+    const maxDim = 480;
+    const scale = Math.min(1, maxDim / Math.max(video.videoWidth || maxDim, video.videoHeight || maxDim));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round((video.videoWidth || maxDim) * scale));
+    canvas.height = Math.max(1, Math.round((video.videoHeight || maxDim) * scale));
+    const ctx = canvas.getContext('2d');
+
+    const timestamps = [];
+    for (let t = 0; t < duration && timestamps.length < 6; t += 3) timestamps.push(t);
+    if (timestamps.length === 0) timestamps.push(0);
+
+    const frames = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const t = timestamps[i];
+      log(`Grabbing frame ${i + 1}/${timestamps.length}…`);
+      await new Promise((resolve, reject) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.addEventListener('error', () => reject(new Error('Error reading a frame from the reference video.')), { once: true });
+        video.currentTime = Math.min(t, Math.max(0, duration - 0.05));
+      });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push({
+        dataUrl: canvas.toDataURL('image/jpeg', 0.7),
+        timestampSeconds: t,
+      });
+    }
+
+    if (frames.length === 0) throw new Error('Could not extract any frames from the reference video.');
+    return frames;
+  } finally {
+    URL.revokeObjectURL(url);
   }
-  if (frames.length === 0) throw new Error('Could not extract any frames from the reference video.');
-  return frames;
 }
 
 async function describeFrame(dataUrl, key) {
@@ -492,7 +518,13 @@ async function buildAndRunOp(op) {
       throw new Error(`Unknown operation: ${op.op}`);
   }
   log(`Running: ffmpeg ${args.join(' ')}`);
-  await ffmpeg.exec(args);
+  const exitCode = await ffmpeg.exec(args);
+  // ffmpeg.exec() resolves with an exit code instead of throwing — a nonzero code
+  // means the step actually failed, even though nothing threw. Catch that here so a
+  // failed step can't silently fall through to a broken/incomplete export.
+  if (exitCode !== 0) {
+    throw new Error(`ffmpeg failed on the "${op.op}" step (exit code ${exitCode}). Check the log above for ffmpeg's own error output.`);
+  }
 }
 
 els.runBtn.addEventListener('click', async () => {
@@ -519,6 +551,9 @@ els.runBtn.addEventListener('click', async () => {
     }
 
     const data = await ffmpeg.readFile(currentPlan.final_output);
+    if (!data || data.byteLength < 1000) {
+      throw new Error(`Export produced an unexpectedly small file (${data ? data.byteLength : 0} bytes) — something went wrong in the pipeline. Check the log above.`);
+    }
     const blob = new Blob([data.buffer], { type: 'video/mp4' });
     const url = URL.createObjectURL(blob);
 
