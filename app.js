@@ -160,7 +160,7 @@ async function describeFrame(dataUrl, key) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'llama-3.2-90b-vision-preview',
+      model: 'qwen/qwen3.6-27b',
       temperature: 0.2,
       messages: [{
         role: 'user',
@@ -185,7 +185,7 @@ async function synthesizeStyleProfile(describedFrames, key) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.3,
       messages: [
         {
@@ -295,7 +295,7 @@ async function callGroq(instructionText) {
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.2,
       messages: [
         { role: 'system', content: SCHEMA_PROMPT },
