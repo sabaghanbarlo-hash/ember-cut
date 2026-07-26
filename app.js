@@ -378,7 +378,7 @@ async function ensureFFmpeg() {
     els.progressLabel.textContent = `Working… ${pct}%`;
   });
 
-  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
   const classWorkerURL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js';
   log('Loading ffmpeg core (first run only, ~30MB)…');
   try {
