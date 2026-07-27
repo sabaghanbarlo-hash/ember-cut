@@ -11,7 +11,20 @@
 </head>
 <body>
 
-<script src="coi-serviceworker.js"></script>
+<script>
+// Ember Cut doesn't use ffmpeg's multi-threaded core, so it never actually needed
+// cross-origin isolation (SharedArrayBuffer). The old coi-serviceworker.js intercepted
+// every fetch on the page — including calls to the Groq API — and had a bug where any
+// hiccup in its internal re-fetch of a cross-origin request surfaced as a generic
+// "Failed to fetch" on the page, even though the real request was fine. Actively
+// unregister it for anyone who has it installed from a previous visit.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    for (const reg of regs) reg.unregister();
+  });
+}
+</script>
+
 
 <div class="grain"></div>
 
