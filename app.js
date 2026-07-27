@@ -141,17 +141,20 @@ async function extractReferenceFrames(file) {
       throw new Error('Could not determine the reference video\'s duration.');
     }
 
-    // downscale so each frame's base64 payload stays small (keeps memory and the
-    // Groq vision request size down)
-    const maxDim = 480;
+    // downscale so each frame's base64 payload stays small — the free-tier vision
+    // model has a very low tokens-per-minute budget (8000 TPM), and a handful of
+    // full-size frames can blow through that on their own
+    const maxDim = 320;
     const scale = Math.min(1, maxDim / Math.max(video.videoWidth || maxDim, video.videoHeight || maxDim));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round((video.videoWidth || maxDim) * scale));
     canvas.height = Math.max(1, Math.round((video.videoHeight || maxDim) * scale));
     const ctx = canvas.getContext('2d');
 
+    // fewer, more spread-out samples — keeps total vision tokens for this analysis
+    // comfortably under the free-tier per-minute budget
     const timestamps = [];
-    for (let t = 0; t < duration && timestamps.length < 6; t += 3) timestamps.push(t);
+    for (let t = 0; t < duration && timestamps.length < 4; t += 4) timestamps.push(t);
     if (timestamps.length === 0) timestamps.push(0);
 
     const frames = [];
@@ -181,8 +184,28 @@ async function extractReferenceFrames(file) {
   }
 }
 
+// Wraps fetch() to Groq with automatic retry on 429 (rate limit) responses — waits
+// for the server's suggested Retry-After (or a sane fallback) and tries again instead
+// of failing the whole analysis/plan on a transient rate limit.
+async function groqFetch(url, options, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.status !== 429 || attempt === maxRetries) return res;
+    const retryAfterHeader = res.headers.get('retry-after');
+    let waitSeconds = retryAfterHeader ? parseFloat(retryAfterHeader) : NaN;
+    if (!isFinite(waitSeconds) || waitSeconds <= 0) {
+      const bodyText = await res.clone().text().catch(() => '');
+      const match = bodyText.match(/try again in ([\d.]+)s/i);
+      waitSeconds = match ? parseFloat(match[1]) : 15 * (attempt + 1);
+    }
+    waitSeconds = Math.min(waitSeconds, 60);
+    log(`Rate limited by Groq — waiting ${Math.ceil(waitSeconds)}s before retrying…`);
+    await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+  }
+}
+
 async function describeFrame(dataUrl, key) {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
@@ -207,7 +230,7 @@ async function describeFrame(dataUrl, key) {
 
 async function synthesizeStyleProfile(describedFrames, key) {
   const descText = describedFrames.map((f) => `t=${f.timestampSeconds}s: ${f.description}`).join('\n');
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
@@ -314,7 +337,7 @@ async function callGroq(instructionText) {
     ? `\n\nStyle reference (extracted from an example video — that video is NOT among your available files, do not reference it directly, only imitate its style using the files below):\n${JSON.stringify(styleProfile)}`
     : '';
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
