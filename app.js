@@ -20,6 +20,8 @@ const els = {
   previewVideo: document.getElementById('previewVideo'),
   stageEmpty: document.getElementById('stageEmpty'),
   downloadBtn: document.getElementById('downloadBtn'),
+  thumbBtn: document.getElementById('thumbBtn'),
+  pexelsKey: document.getElementById('pexelsKey'),
   progressWrap: document.getElementById('progressWrap'),
   progressFill: document.getElementById('progressFill'),
   progressLabel: document.getElementById('progressLabel'),
@@ -54,6 +56,12 @@ function log(msg) {
 els.groqKey.value = localStorage.getItem('emberCut_groqKey') || '';
 els.groqKey.addEventListener('input', () => {
   localStorage.setItem('emberCut_groqKey', els.groqKey.value.trim());
+});
+
+// ---------- Pexels key persistence (optional, for stock B-roll fallback) ----------
+els.pexelsKey.value = localStorage.getItem('emberCut_pexelsKey') || '';
+els.pexelsKey.addEventListener('input', () => {
+  localStorage.setItem('emberCut_pexelsKey', els.pexelsKey.value.trim());
 });
 
 // ---------- media handling ----------
@@ -310,7 +318,8 @@ Schema:
     { "op": "resize", "input": "<filename>", "width": <number>, "height": <number>, "output": "<newname>" },
     { "op": "extract_audio", "input": "<filename>", "output": "<newname ending in .mp3>" },
     { "op": "format_convert", "input": "<filename>", "output": "<newname with target extension>" },
-    { "op": "image_to_clip", "input": "<filename, a still image>", "duration": <seconds:number>, "output": "<newname ending in .mp4>" }
+    { "op": "image_to_clip", "input": "<filename, a still image>", "duration": <seconds:number>, "output": "<newname ending in .mp4>" },
+    { "op": "fetch_stock_clip", "query": "<short search term describing the footage needed>", "orientation": "landscape|portrait|square (default landscape)", "output": "<newname ending in .mp4>" }
   ],
   "final_output": "<the filename that is the finished result>"
 }
@@ -322,7 +331,9 @@ Rules:
 - Keep the plan minimal: only include steps the user actually asked for.
 - "final_output" must match the output of the last relevant operation.
 - If a "style reference" is provided, use its pacing and recommended clip duration as a guide for trim/image_to_clip durations, and its caption style as a guide for any text_overlay, but build the video ONLY from the user's own uploaded files.
-- If something is ambiguous, make the most reasonable assumption rather than asking a question.\n- The plan MUST contain at least one operation that actually transforms the input. Never return an empty \"operations\" array, and never set \"final_output\" to an original uploaded filename unless at least one operation produced a file with that exact name.`;
+- If something is ambiguous, make the most reasonable assumption rather than asking a question.
+- Only use "fetch_stock_clip" if the user message says stock footage fetching is ENABLED. If it is DISABLED, work only from the uploaded media list and skip beats you cannot cover with real files.
+- The plan MUST contain at least one operation that actually transforms the input. Never return an empty \"operations\" array, and never set \"final_output\" to an original uploaded filename unless at least one operation produced a file with that exact name.`;
 
 async function callGroq(instructionText) {
   const key = els.groqKey.value.trim();
@@ -337,6 +348,11 @@ async function callGroq(instructionText) {
     ? `\n\nStyle reference (extracted from an example video — that video is NOT among your available files, do not reference it directly, only imitate its style using the files below):\n${JSON.stringify(styleProfile)}`
     : '';
 
+  const pexelsEnabled = !!els.pexelsKey.value.trim();
+  const stockContext = pexelsEnabled
+    ? 'Stock footage fetching: ENABLED — you may use "fetch_stock_clip" for beats not covered by uploaded media.'
+    : 'Stock footage fetching: DISABLED — do not use "fetch_stock_clip"; only use the uploaded media list above.';
+
   const res = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -350,7 +366,7 @@ async function callGroq(instructionText) {
         { role: 'system', content: SCHEMA_PROMPT },
         {
           role: 'user',
-          content: `Available media files:\n${mediaDescription}\n\nInstructions: ${instructionText}${styleContext}`,
+          content: `Available media files:\n${mediaDescription}\n\n${stockContext}\n\nInstructions: ${instructionText}${styleContext}`,
         },
       ],
     }),
@@ -540,6 +556,42 @@ async function buildAndRunOp(op) {
         '-c:v', 'libx264', '-r', '30', op.output);
       break;
     }
+    case 'fetch_stock_clip': {
+      // Not an ffmpeg step — downloads a stock clip from Pexels into the virtual FS
+      // so later ops (concat, trim, etc.) can treat it like any uploaded file.
+      const key = els.pexelsKey.value.trim();
+      if (!key) {
+        throw new Error(`This plan wants to fetch stock B-roll ("${op.query}") but no Pexels API key is set. Add a free key in the left panel, or upload your own footage instead.`);
+      }
+      log(`Searching Pexels for stock clip: "${op.query}"...`);
+      const searchRes = await fetch(
+        `https://api.pexels.com/videos/search?query=${encodeURIComponent(op.query)}&per_page=1&orientation=${op.orientation || 'landscape'}`,
+        { headers: { Authorization: key } }
+      );
+      if (!searchRes.ok) {
+        throw new Error(`Pexels search failed (${searchRes.status}). Check your API key.`);
+      }
+      const searchData = await searchRes.json();
+      const video = searchData.videos && searchData.videos[0];
+      if (!video) {
+        throw new Error(`No Pexels results for "${op.query}". Try a simpler search term, or upload your own clip instead.`);
+      }
+      const files = (video.video_files || []).filter((f) => f.file_type === 'video/mp4');
+      files.sort((a, b) => (a.width || 0) - (b.width || 0));
+      const pick = files.find((f) => (f.width || 0) >= 960) || files[files.length - 1];
+      if (!pick) {
+        throw new Error(`Pexels result for "${op.query}" had no usable video file.`);
+      }
+      log(`Downloading stock clip for "${op.query}"...`);
+      const clipRes = await fetch(pick.link);
+      if (!clipRes.ok) {
+        throw new Error(`Failed to download stock clip (${clipRes.status}).`);
+      }
+      const clipBytes = new Uint8Array(await clipRes.arrayBuffer());
+      await ffmpeg.writeFile(op.output, clipBytes);
+      log(`Saved stock clip as ${op.output}.`);
+      return; // no ffmpeg.exec needed for this op
+    }
     default:
       throw new Error(`Unknown operation: ${op.op}`);
   }
@@ -550,6 +602,28 @@ async function buildAndRunOp(op) {
   // failed step can't silently fall through to a broken/incomplete export.
   if (exitCode !== 0) {
     throw new Error(`ffmpeg failed on the "${op.op}" step (exit code ${exitCode}). Check the log above for ffmpeg's own error output.`);
+  }
+}
+
+async function extractThumbnail(finalName) {
+  try {
+    let exitCode = await ffmpeg.exec(['-i', finalName, '-ss', '1', '-frames:v', '1', '-q:v', '2', 'thumbnail.jpg']);
+    if (exitCode !== 0) {
+      // source may be shorter than 1s — fall back to the very first frame
+      exitCode = await ffmpeg.exec(['-i', finalName, '-frames:v', '1', '-q:v', '2', 'thumbnail.jpg']);
+    }
+    if (exitCode !== 0) {
+      log('Could not extract a thumbnail frame.');
+      return;
+    }
+    const data = await ffmpeg.readFile('thumbnail.jpg');
+    const blob = new Blob([data.buffer], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    els.thumbBtn.href = url;
+    els.thumbBtn.hidden = false;
+    log('Thumbnail frame extracted.');
+  } catch (err) {
+    log(`Thumbnail extraction failed: ${errText(err)} (export itself is unaffected).`);
   }
 }
 
@@ -588,6 +662,9 @@ els.runBtn.addEventListener('click', async () => {
     els.stageEmpty.hidden = true;
     els.downloadBtn.href = url;
     els.downloadBtn.hidden = false;
+
+    await extractThumbnail(currentPlan.final_output);
+
     els.progressLabel.textContent = 'Done.';
     log('Export complete.');
   } catch (err) {
