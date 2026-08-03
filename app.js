@@ -322,7 +322,7 @@ Rules:
 - Keep the plan minimal: only include steps the user actually asked for.
 - "final_output" must match the output of the last relevant operation.
 - If a "style reference" is provided, use its pacing and recommended clip duration as a guide for trim/image_to_clip durations, and its caption style as a guide for any text_overlay, but build the video ONLY from the user's own uploaded files.
-- If something is ambiguous, make the most reasonable assumption rather than asking a question.`;
+- If something is ambiguous, make the most reasonable assumption rather than asking a question.\n- The plan MUST contain at least one operation that actually transforms the input. Never return an empty \"operations\" array, and never set \"final_output\" to an original uploaded filename unless at least one operation produced a file with that exact name.`;
 
 async function callGroq(instructionText) {
   const key = els.groqKey.value.trim();
@@ -371,6 +371,9 @@ async function callGroq(instructionText) {
   }
   if (!plan.operations || !plan.final_output) {
     throw new Error('The plan is missing required fields. Try again.');
+  }
+  if (plan.operations.length === 0) {
+    throw new Error('Groq returned an empty plan (no operations) — your instructions may be too vague for it to act on. Try being more specific about what should change.');
   }
   return plan;
 }
