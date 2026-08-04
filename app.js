@@ -22,6 +22,8 @@ const els = {
   downloadBtn: document.getElementById('downloadBtn'),
   thumbBtn: document.getElementById('thumbBtn'),
   pexelsKey: document.getElementById('pexelsKey'),
+  analyzeFootageBtn: document.getElementById('analyzeFootageBtn'),
+  footageOutput: document.getElementById('footageOutput'),
   progressWrap: document.getElementById('progressWrap'),
   progressFill: document.getElementById('progressFill'),
   progressLabel: document.getElementById('progressLabel'),
@@ -33,6 +35,7 @@ let ffmpeg = null;
 let ffmpegLoaded = false;
 let referenceFile = null;
 let styleProfile = null;
+let footageProfiles = {};  // { filename: [{ timestampSeconds, description }] }
 
 // ---------- logging ----------
 function errText(err) {
@@ -301,6 +304,39 @@ els.analyzeBtn.addEventListener('click', async () => {
   }
 });
 
+// Analyzes the user's OWN uploaded footage (not the reference) frame-by-frame,
+// so the plan generator knows what's actually in the video instead of guessing blind.
+async function analyzeFootage() {
+  const key = els.groqKey.value.trim();
+  if (!key) { alert('Add your free Groq API key first (below).'); return; }
+  const videoFiles = mediaFiles.filter((m) => (m.type || '').startsWith('video/'));
+  if (videoFiles.length === 0) { alert('Upload at least one video file first.'); return; }
+
+  els.analyzeFootageBtn.disabled = true;
+  els.footageOutput.style.display = 'block';
+  try {
+    for (const m of videoFiles) {
+      els.footageOutput.textContent = `Reading ${m.name}…`;
+      const frames = await extractReferenceFrames(m.file);
+      const described = [];
+      for (const f of frames) {
+        els.footageOutput.textContent = `Describing ${m.name}: frame ${described.length + 1}/${frames.length}…`;
+        const description = await describeFrame(f.dataUrl, key);
+        described.push({ timestampSeconds: f.timestampSeconds, description });
+      }
+      footageProfiles[m.name] = described;
+    }
+    els.footageOutput.textContent = JSON.stringify(footageProfiles, null, 2);
+    log('Footage analyzed — the plan generator now knows what\'s actually in your video(s).');
+  } catch (err) {
+    els.footageOutput.textContent = `Error: ${errText(err)}`;
+    log(`Footage analysis failed: ${errText(err)}`);
+  } finally {
+    els.analyzeFootageBtn.disabled = false;
+  }
+}
+els.analyzeFootageBtn.addEventListener('click', analyzeFootage);
+
 // ---------- Groq: instructions -> edit plan ----------
 const SCHEMA_PROMPT = `You are a video editing planner. Convert the user's plain-language instructions
 into a strict JSON edit plan for an ffmpeg-based executor. Respond with ONLY valid JSON, no prose, no markdown fences.
@@ -328,10 +364,12 @@ Rules:
 - Only use filenames from the provided media list, or names you created earlier as an "output" in a prior step.
 - Any still image (jpg/png/etc.) MUST be converted to a clip with "image_to_clip" before it can be used in "concat", "text_overlay", or as a final output.
 - Chain operations in logical order — each step's "input" should be a real input file or a previous step's "output".
-- Keep the plan minimal: only include steps the user actually asked for.
+- Keep the plan minimal in the sense of not adding random unrelated effects — but "minimal" does NOT mean "as few operations as possible"; use as many operations as the requested style genuinely requires.
 - "final_output" must match the output of the last relevant operation.
 - If a "style reference" is provided, use its pacing and recommended clip duration as a guide for trim/image_to_clip durations, and its caption style as a guide for any text_overlay, but build the video ONLY from the user's own uploaded files.
 - If something is ambiguous, make the most reasonable assumption rather than asking a question.
+- Do NOT default to a single short trim as a "safe" answer. If the instructions describe an editing style or format (e.g. vlog, highlight reel, montage, tutorial), the plan should reflect that with multiple operations as appropriate — e.g. several trims of the strongest moments concatenated together, text_overlay callouts tied to what is actually shown, speed changes for pacing — not just one clip cut short.
+- When content descriptions of the uploaded footage (with timestamps) are provided, use them to choose specific, real cut points and overlay text based on what is actually happening on screen, instead of guessing arbitrary numbers.
 - Only use "fetch_stock_clip" if the user message says stock footage fetching is ENABLED. If it is DISABLED, work only from the uploaded media list and skip beats you cannot cover with real files.
 - The plan MUST contain at least one operation that actually transforms the input. Never return an empty \"operations\" array, and never set \"final_output\" to an original uploaded filename unless at least one operation produced a file with that exact name.`;
 
@@ -353,6 +391,11 @@ async function callGroq(instructionText) {
     ? 'Stock footage fetching: ENABLED — you may use "fetch_stock_clip" for beats not covered by uploaded media.'
     : 'Stock footage fetching: DISABLED — do not use "fetch_stock_clip"; only use the uploaded media list above.';
 
+  const analyzedNames = Object.keys(footageProfiles);
+  const footageContext = analyzedNames.length
+    ? `\n\nContent of your uploaded footage (sampled frames with timestamps — use these to make real editorial decisions: what to cut, where the strongest moments are, what's on screen for text overlays):\n${JSON.stringify(footageProfiles, null, 0)}`
+    : '\n\n(Your own footage has not been content-analyzed — only filenames/types are known. If your instructions describe a specific editing style, make the most reasonable multi-step plan you can from timing alone.)';
+
   const res = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -366,7 +409,7 @@ async function callGroq(instructionText) {
         { role: 'system', content: SCHEMA_PROMPT },
         {
           role: 'user',
-          content: `Available media files:\n${mediaDescription}\n\n${stockContext}\n\nInstructions: ${instructionText}${styleContext}`,
+          content: `Available media files:\n${mediaDescription}\n\n${stockContext}${footageContext}\n\nInstructions: ${instructionText}${styleContext}`,
         },
       ],
     }),
