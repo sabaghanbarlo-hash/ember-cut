@@ -59,6 +59,10 @@ if ('serviceWorker' in navigator) {
 
     <ul class="media-list" id="mediaList"></ul>
 
+    <button id="analyzeFootageBtn" class="btn btn-ghost" style="width:100%;">Analyze my footage</button>
+    <p class="hint">Lets the AI actually see what's in your video(s) before planning edits — recommended for anything beyond a simple trim.</p>
+    <pre id="footageOutput" class="plan-output" style="margin-top:6px; display:none;"></pre>
+
     <div class="key-block">
       <h3 class="panel-subtitle">Groq API key <span class="free-tag">free tier</span></h3>
       <input type="password" id="groqKey" placeholder="gsk_..." class="text-input" />
